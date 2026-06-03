@@ -1,0 +1,6 @@
+{
+  "schemaType": "NERDLET",
+  "id": "home",
+  "displayName": "Compute Savings Plan",
+  "description": "Track contract drawdown, Flexpool balance, and projected end date for New Relic Compute Savings Plans"
+}

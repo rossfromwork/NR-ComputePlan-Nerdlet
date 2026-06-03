@@ -1,0 +1,7 @@
+{
+  "schemaType": "LAUNCHER",
+  "id": "launcher",
+  "displayName": "Compute Savings Plan",
+  "description": "Monitor NR Compute contract drawdown, Flexpool balance, and burn rate",
+  "rootNerdletId": "7f98b533-1a40-438e-b91e-287ae48d93f1.home"
+}
