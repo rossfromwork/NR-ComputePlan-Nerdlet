@@ -22,9 +22,9 @@ export default class ComputePlanNerdlet extends React.Component {
     this.state = {
       accountId: null,
       config: null,
-      existingConfig: null, // preserved copy used when editing
+      existingConfig: null,
       isEditing: false,
-      bootstrapping: true,  // true while we attempt auto-load on mount
+      bootstrapping: true,
       configLoading: false,
       configError: null,
     };
@@ -35,18 +35,25 @@ export default class ComputePlanNerdlet extends React.Component {
   }
 
   async componentDidMount() {
-    // Try to restore the last used account from UserStorage and auto-load its config
+    // Try to restore the last used account from UserStorage and auto-load its config.
+    // Race against a 4s timeout so a hanging promise never blocks the UI.
     try {
-      const { data } = await UserStorageQuery.query({
-        collection: USER_COLLECTION,
-        documentId: USER_DOC,
-      });
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 4000)
+      );
+      const { data } = await Promise.race([
+        UserStorageQuery.query({
+          collection: USER_COLLECTION,
+          documentId: USER_DOC,
+        }),
+        timeout,
+      ]);
       if (data && data.accountId) {
         await this.loadConfigForAccount(data.accountId);
         return;
       }
     } catch (_) {
-      // UserStorage miss is fine — fall through to picker
+      // UserStorage miss, unavailable, or timeout — fall through to picker
     }
     this.setState({ bootstrapping: false });
   }
@@ -89,7 +96,6 @@ export default class ComputePlanNerdlet extends React.Component {
   }
 
   handleEditConfig() {
-    // Keep config as existingConfig so ConfigScreen can pre-populate fields
     this.setState(prev => ({ isEditing: true, existingConfig: prev.config }));
   }
 
@@ -101,7 +107,6 @@ export default class ComputePlanNerdlet extends React.Component {
       isEditing: false,
       configError: null,
     });
-    // Clear the persisted account so next load shows the picker again
     UserStorageMutation.mutate({
       actionType: UserStorageMutation.ACTION_TYPE.DELETE_DOCUMENT,
       collection: USER_COLLECTION,
@@ -112,7 +117,6 @@ export default class ComputePlanNerdlet extends React.Component {
   render() {
     const { accountId, config, existingConfig, isEditing, bootstrapping, configLoading, configError } = this.state;
 
-    // Attempting auto-load from UserStorage on first mount
     if (bootstrapping || configLoading) {
       return (
         <div className="compute-plan-root">
@@ -121,7 +125,6 @@ export default class ComputePlanNerdlet extends React.Component {
       );
     }
 
-    // No account yet — show centred picker
     if (!accountId) {
       return (
         <div className="compute-plan-root">
@@ -160,9 +163,6 @@ export default class ComputePlanNerdlet extends React.Component {
           </Card>
         )}
 
-        {/* Show config screen when editing or when no config exists yet.
-            key forces a remount when switching between new-setup and edit
-            so the constructor always re-reads existingConfig correctly. */}
         {!configError && (isEditing || !config) && (
           <ConfigScreen
             key={isEditing ? 'edit' : 'new'}
@@ -174,7 +174,6 @@ export default class ComputePlanNerdlet extends React.Component {
           />
         )}
 
-        {/* Show dashboard when config is loaded and not actively editing */}
         {!configError && config && !isEditing && (
           <Dashboard
             accountId={accountId}
